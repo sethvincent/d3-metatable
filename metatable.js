@@ -1,12 +1,9 @@
 if (typeof module !== 'undefined') {
-    module.exports = function(d3) {
-        return metatable;
-    };
+    module.exports = metatable;
 }
 
-function metatable() {
-    var event = d3.dispatch('change', 'rowfocus', 'renameprompt', 'deleteprompt', 'preventprompt');
-    var _renamePrompt, _deletePrompt;
+function metatable(d3) {
+    var event = d3.dispatch('change', 'rowfocus');
 
     function table(selection) {
         selection.each(function(d) {
@@ -23,37 +20,24 @@ function metatable() {
             bootstrap();
             paint();
 
-            event.preventprompt = function(which) {
-                switch(which) {
-                    case 'rename':
-                        _renamePrompt = true;
-                    break;
-                    case 'delete':
-                        _deletePrompt = true;
-                    break;
-                }
-            };
-
             function bootstrap() {
 
                 var controls = sel.selectAll('.controls')
                     .data([d])
                     .enter()
                     .append('div')
-                    .attr('class', 'controls space-bottom');
+                    .attr('class', 'controls');
 
-                var colbutton = controls.append('a')
-                    .text('New column')
-                    .attr('href', '#')
-                    .attr('class', 'button icon plus')
+                var colbutton = controls.append('button')
                     .on('click', function() {
-                        d3.event.preventDefault();
                         var name = prompt('column name');
                         if (name) {
                             keyset.add(name);
                             paint();
                         }
                     });
+                colbutton.append('span').attr('class', 'icon-plus');
+                colbutton.append('span').text(' new column');
 
                 var enter = sel.selectAll('table').data([d]).enter().append('table');
                 var thead = enter.append('thead');
@@ -73,32 +57,22 @@ function metatable() {
                     .selectAll('th')
                     .data(keys, function(d) { return d; });
 
-                var thEnter = th.enter()
-                    .append('th')
+                var thEnter = th.enter().append('th');
+
+                thEnter.append('span')
                     .text(String);
 
-                var actionLinks = thEnter
-                    .append('div')
-                    .attr('class', 'small');
-
-                var delbutton = actionLinks
-                    .append('a')
-                    .attr('href', '#')
-                    .attr('class', 'icon trash')
-                    .text('Delete');
-
-                var renamebutton = actionLinks
-                    .append('a')
-                    .attr('href', '#')
-                    .attr('class', 'icon pencil')
-                    .text('Rename');
+                var delbutton = thEnter.append('button'),
+                    renamebutton = thEnter.append('button');
 
                 th.exit().remove();
 
                 var tr = table.select('tbody').selectAll('tr')
                     .data(function(d) { return d; });
 
-                tr.enter().append('tr');
+                tr.enter()
+                    .append('tr');
+
                 tr.exit().remove();
 
                 var td = tr.selectAll('td')
@@ -107,69 +81,56 @@ function metatable() {
                 td.enter()
                     .append('td')
                     .append('input')
-                    .attr('type', 'text')
                     .attr('field', String);
 
                 td.exit().remove();
 
                 delbutton.on('click', deleteClick);
+                delbutton.append('span').attr('class', 'icon-minus');
+                delbutton.append('span').text(' delete');
+
+                renamebutton.append('span').text(' rename');
                 renamebutton.on('click', renameClick);
 
                 function deleteClick(d) {
-                    d3.event.preventDefault();
                     var name = d;
-                    event.deleteprompt(d, completeDelete);
-                    if (_deletePrompt || confirm('Delete column ' + name + '?')) {
-                        completeDelete(d);
+                    if (confirm('Delete column ' + name + '?')) {
+                        keyset.remove(name);
+                        tr.selectAll('input')
+                            .data(function(d, i) {
+                                var map = d3.map(d);
+                                map.remove(name);
+                                var reduced = mapToObject(map);
+                                event.change(reduced, i);
+                                return {
+                                    data: reduced,
+                                    index: i
+                                };
+                            });
+                        paint();
                     }
-                }
-
-                function completeDelete(name) {
-                    keyset.remove(name);
-                    tr.selectAll('input')
-                        .data(function(d, i) {
-                            var map = d3.map(d);
-                            map.remove(name);
-                            var reduced = mapToObject(map);
-                            event.change(reduced, i);
-                            return {
-                                data: reduced,
-                                index: i
-                            };
-                        });
-                    paint();
                 }
 
                 function renameClick(d) {
-                    d3.event.preventDefault();
                     var name = d;
-                    event.renameprompt(d, completeRename);
-
-                    var newname = (_renamePrompt) ?
-                        undefined :
-                        prompt('New name for column ' + name + '?');
-
-                    if (_renamePrompt || newname) {
-                        completeRename(newname, name);
+                    var newname = prompt('New name for column ' + name + '?');
+                    if (newname) {
+                        keyset.remove(name);
+                        keyset.add(newname);
+                        tr.selectAll('input')
+                            .data(function(d, i) {
+                                var map = d3.map(d);
+                                map.set(newname, map.get(name));
+                                map.remove(name);
+                                var reduced = mapToObject(map);
+                                event.change(reduced, i);
+                                return {
+                                    data: reduced,
+                                    index: i
+                                };
+                            });
+                        paint();
                     }
-                }
-
-                function completeRename(value, name) {
-                    keyset.add(value);
-                    keyset.remove(name);
-                    tr.selectAll('input')
-                        .data(function(d, i) {
-                            var map = d3.map(d);
-                            map.set(value, map.get(name));
-                            map.remove(name);
-                            var reduced = mapToObject(map);
-                            event.change(reduced, i);
-                            return {
-                                data: reduced,
-                                index: i
-                            };
-                        });
-                    paint();
                 }
 
                 function coerceNum(x) {
