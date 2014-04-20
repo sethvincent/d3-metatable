@@ -2,7 +2,7 @@ if (typeof module !== 'undefined') {
     module.exports = metatable;
 }
 
-function metatable() {
+function metatable(d3) {
     var event = d3.dispatch('change', 'rowfocus', 'renameprompt', 'deleteprompt', 'preventprompt');
     var _renamePrompt, _deletePrompt;
 
