@@ -102,11 +102,19 @@ function metatable(d3) {
                 var td = tr.selectAll('td')
                     .data(keys, function(d) { return d; });
 
-                td.enter()
+                var tdEnter = td.enter()
                     .append('td')
+
+                tdEnter
                     .append('input')
                     .attr('type', 'text')
                     .attr('field', String);
+
+                tdEnter
+                    .append('span')
+                    .attr('class', 'expand')
+                    .append('i')
+                    .attr('class', 'fa fa-expand');
 
                 td.exit().remove();
 
